@@ -1,0 +1,90 @@
+﻿@page "/"
+@using System.IO;
+@using System.Diagnostics;
+
+<h1>Client Side Image Resizing with Blazor Web Assembly</h1>
+<p>Resizes images to maximum 1920px by 1080px. Maximum 2000 files.</p>
+<InputFile multiple OnChange="OnInputFileChange" />
+<br />
+<label class="text-danger">@labelText</label><p>Number of images processed: @counter</p>
+
+@if (progress.HasValue)
+{
+    @if (progress < 100)
+    {        
+        <div class="progress">
+            <div class="progress-bar" role="progressbar" style="width: @(progress)%;" aria-valuenow="@progress" aria-valuemin="0" aria-valuemax="100">@progress%</div>
+        </div>
+    }
+    else
+    {
+        <h1>Upload succeeded!</h1>
+    }
+}
+<div class="image-list" style="overflow:scroll; height:300px;">
+    <ul>
+        @foreach (var imageFileSize in imageFileSizes)
+        {
+            <li>@imageFileSize kb</li>
+        }
+
+    </ul>
+    <div class="col">
+        @foreach (var imageDataUrl in imageDataUrls)
+        {
+
+            <img style="width:200px; height:auto" src="@imageDataUrl" />
+
+        }
+    </div>
+</div>
+
+
+@code{
+    public int? progress;
+    IList<string> imageDataUrls = new List<string>();
+    IList<long> imageFileSizes = new List<long>();    
+    string labelText;
+    int counter = 0;
+    async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+
+        var stopwatch = Stopwatch.StartNew();
+
+        var imageFiles = e.GetMultipleFiles(2000);
+    
+        var format = "image/jpg";
+        foreach (var imageFile in imageFiles)
+        {
+            var resizedImageFile = await imageFile.RequestImageFileAsync(format, 1920, 1080);
+            //var buffer = new byte[resizedImageFile.Size];
+            //await resizedImageFile.OpenReadStream(200000000).ReadAsync(buffer);
+            //var imageDataUrl = $"data: {format}; base64,{Convert.ToBase64String(buffer)}";
+            //imageDataUrls.Add(imageDataUrl);
+            
+            imageFileSizes.Add(resizedImageFile.Size / 1024);
+            counter++;
+            var c = imageFiles.Count();
+            progress = (int)(((decimal)counter / c) * 100);
+            resizedImageFile = null;
+            this.StateHasChanged();
+
+        }
+        // Show time to process the images.
+        // Stop.
+        stopwatch.Stop();
+
+        long totalKb = 0;
+        foreach (var item in imageFileSizes)
+        {
+            totalKb += item;
+        }
+
+
+        // Write hours, minutes and seconds.
+        labelText = $"Total time elapsed: {stopwatch.Elapsed.ToString("mm\\:ss\\.ffff")}. Average time to resize each image: {stopwatch.ElapsedMilliseconds / counter} milliseconds. Total size of all resized files: {totalKb / 1024} MB";
+        this.StateHasChanged();
+        // Write hours, minutes and seconds.
+
+    }
+}
